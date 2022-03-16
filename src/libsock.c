@@ -303,7 +303,9 @@ libsock_fdset_get(libsock_ctx_t *ctx)
 	FD_ZERO(&(set->lf_set));
 	LIST_FOREACH_SAFE(conn, &(ctx->lc_connections), lsc_entry, tconn) {
 		FD_SET(conn->lsc_sockfd, &(set->lf_set));
-		set->lf_nsock++;
+		if (conn->lsc_sockfd > set->lf_nsock) {
+			set->lf_nsock = conn->lsc_sockfd;
+		}
 	}
 
 	if (libsock_ctx_unlock(ctx) == false) {
@@ -454,6 +456,7 @@ libsock_bind_host(libsock_ctx_t *ctx, const char *host, const char *port,
     int sockflags)
 {
 	struct addrinfo hints, *infop, *info;
+	int yes;
 
 	if (ctx == NULL || host == NULL || port == NULL) {
 		return (false);
@@ -469,7 +472,10 @@ libsock_bind_host(libsock_ctx_t *ctx, const char *host, const char *port,
 
 	infop = NULL;
 	memset(&hints, 0, sizeof(hints));
-	if (getaddrinfo(host, port, NULL, &infop)) {
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
+	if (getaddrinfo(host, port, &hints, &infop)) {
 		return (false);
 	}
 
@@ -487,6 +493,10 @@ libsock_bind_host(libsock_ctx_t *ctx, const char *host, const char *port,
 		if (ctx->lc_sockfd < 0) {
 			continue;
 		}
+
+		yes = 1;
+		setsockopt(ctx->lc_sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+		     sizeof(yes));
 
 		if (bind(ctx->lc_sockfd, info->ai_addr, info->ai_addrlen)) {
 			close(ctx->lc_sockfd);

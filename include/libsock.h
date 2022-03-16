@@ -120,5 +120,6 @@ ssize_t libsock_sub_connection_send(libsock_sub_connection_t *, const void *,
 
 bool libsock_bind_host(libsock_ctx_t *ctx, const char *, const char *, int);
 bool libsock_accept(libsock_ctx_t *);
+bool libsock_listen(libsock_ctx_t *, int);
 
 #endif /* !_LIBSOCK_H */
