@@ -442,18 +442,80 @@ libsock_accept(libsock_ctx_t *ctx)
 	}
 
 	if (conn->lsc_tls == NULL) {
-		/*
-		 * This shouldn't happen, but let's be defensive.
-		 */
+		/* This shouldn't happen, but let's be defensive. */
 		return (false);
 	}
 
 	return (libsock_ctx_add_conn(ctx, conn));
 }
 
+bool
+libsock_bind_host(libsock_ctx_t *ctx, const char *host, const char *port,
+    int sockflags)
+{
+	struct addrinfo hints, *infop, *info;
+
+	if (ctx == NULL || host == NULL || port == NULL) {
+		return (false);
+	}
+
+	if (ctx->lc_sockfd >= 0) {
+		/*
+		 * We'll create a new sockfd as part of binding to a
+		 * specific IP.
+		 */
+		return (false);
+	}
+
+	infop = NULL;
+	memset(&hints, 0, sizeof(hints));
+	if (getaddrinfo(host, port, NULL, &infop)) {
+		return (false);
+	}
+
+	if (infop == NULL) {
+		/* This shouldn't happen, but let's be defensive. */
+		return (false);
+	}
+
+	sockflags |= SOCK_CLOEXEC;
+
+	for (info = infop; info != NULL; info = info->ai_next) {
+		ctx->lc_sockfd = socket(info->ai_family,
+		    info->ai_socktype | sockflags,
+		    info->ai_protocol);
+		if (ctx->lc_sockfd < 0) {
+			continue;
+		}
+
+		if (bind(ctx->lc_sockfd, info->ai_addr, info->ai_addrlen)) {
+			close(ctx->lc_sockfd);
+			ctx->lc_sockfd = -1;
+			continue;
+		}
+
+		break;
+	}
+
+	freeaddrinfo(infop);
+	return (ctx->lc_sockfd >= 0);
+}
+
+bool
+libsock_listen(libsock_ctx_t *ctx, int backlog)
+{
+
+	if (ctx == NULL || ctx->lc_sockfd < 0) {
+		return (false);
+	}
+
+	return (listen(ctx->lc_sockfd, backlog) == 0);
+}
+
 #if 0
 bool
-libsock_bind_iface(libsock_ctx_t *ctx, const char *iface, bool v4, bool v6)
+libsock_bind_iface(libsock_ctx_t *ctx, const char *iface, const char *port,
+    bool v4, bool v6)
 {
 
 	if (ctx == NULL || iface == NULL) {

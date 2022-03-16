@@ -118,6 +118,7 @@ ssize_t libsock_sub_connection_recv(libsock_sub_connection_t *, void *,
 ssize_t libsock_sub_connection_send(libsock_sub_connection_t *, const void *,
     size_t);
 
+bool libsock_bind_host(libsock_ctx_t *ctx, const char *, const char *, int);
 bool libsock_accept(libsock_ctx_t *);
 
 #endif /* !_LIBSOCK_H */
