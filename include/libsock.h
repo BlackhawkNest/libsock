@@ -50,6 +50,8 @@
 #define _LIBSOCK_KQUEUE_ENABLE
 #endif
 
+struct _libsock_ctx;
+
 typedef enum _libsock_socket_type {
 	LIBSOCK_SOCKET_TYPE_CLIENT = 0,
 	LIBSOCK_SOCKET_TYPE_SERVER = 1,
@@ -67,8 +69,10 @@ typedef struct _libsock_fdset {
 typedef struct _libsock_sub_connection {
 	int					 lsc_sockfd;
 	uint64_t				 lsc_flags;
-	size_t					 lsc_addrlen;
-	struct sockaddr_storage			 lsc_addr;
+	struct tls				*lsc_tls;
+	unsigned int				 lsc_addrlen;
+	struct sockaddr				 lsc_addr;
+	struct _libsock_ctx			*lsc_ctx;
 	LIST_ENTRY(_libsock_sub_connection)	 lsc_entry;
 } libsock_sub_connection_t;
 
@@ -95,7 +99,7 @@ typedef struct _libsock_ctx {
 libsock_ctx_t *libsock_ctx_new(libsock_socket_type_t, int, uint64_t);
 bool libsock_ctx_lock(libsock_ctx_t *);
 bool libsock_ctx_unlock(libsock_ctx_t *);
-bool libsock_ctx_add_conn(libsock_ctx_t *, int, uint64_t);
+bool libsock_ctx_add_conn(libsock_ctx_t *, libsock_sub_connection_t *);
 bool libsock_ctx_remove_conn(libsock_ctx_t *, int, bool);
 
 bool libsock_ctx_load_key_file(libsock_ctx_t *, const char *, char *);
@@ -105,7 +109,15 @@ bool libsock_ctx_config_finalize(libsock_ctx_t *);
 libsock_fdset_t *libsock_fdset_get(libsock_ctx_t *);
 void libsock_fdset_free(libsock_fdset_t **);
 
+libsock_sub_connection_t *libsock_sub_connection_new(libsock_ctx_t *,
+    uint64_t);
 void libsock_sub_connection_free(libsock_sub_connection_t **, bool);
 libsock_sub_connection_t *libsock_sub_connection_find(libsock_ctx_t *, int);
+ssize_t libsock_sub_connection_recv(libsock_sub_connection_t *, void *,
+    size_t, bool);
+ssize_t libsock_sub_connection_send(libsock_sub_connection_t *, const void *,
+    size_t);
+
+bool libsock_accept(libsock_ctx_t *);
 
 #endif /* !_LIBSOCK_H */

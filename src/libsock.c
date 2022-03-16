@@ -32,6 +32,8 @@
 #include <sys/types.h>
 #include <sys/event.h>
 
+#include <sys/param.h>
+
 #include "libsock.h"
 
 libsock_ctx_t *
@@ -179,24 +181,43 @@ libsock_ctx_unlock(libsock_ctx_t *ctx)
 	return (pthread_mutex_unlock(&(ctx->lc_mtx)) == 0);
 }
 
-bool
-libsock_ctx_add_conn(libsock_ctx_t *ctx, int sockfd, uint64_t flags)
+libsock_sub_connection_t *
+libsock_sub_connection_new(libsock_ctx_t *ctx, uint64_t flags)
 {
 	libsock_sub_connection_t *conn;
 
-	if (ctx == NULL || sockfd < 0) {
-		return (false);
+	if (ctx == NULL) {
+		return (NULL);
 	}
 
 	conn = calloc(1, sizeof(*conn));
 	if (conn == NULL) {
+		return (NULL);
+	}
+
+	conn->lsc_ctx = ctx;
+	conn->lsc_sockfd = -1;
+	conn->lsc_flags = flags;
+
+	return (conn);
+}
+
+bool
+libsock_ctx_add_conn(libsock_ctx_t *ctx, libsock_sub_connection_t *conn)
+{
+
+	if (ctx == NULL || conn == NULL) {
 		return (false);
 	}
 
-	conn->lsc_sockfd = 0;
-	conn->lsc_flags = flags;
+	if (libsock_ctx_lock(ctx) == false) {
+		free(conn);
+		return (false);
+	}
 
 	LIST_INSERT_HEAD(&(ctx->lc_connections), conn, lsc_entry);
+
+	libsock_ctx_unlock(ctx);
 
 	return (true);
 }
@@ -241,6 +262,9 @@ libsock_sub_connection_free(libsock_sub_connection_t **connp, bool closefd)
 	}
 
 	conn = *connp;
+	if (conn->lsc_tls != NULL) {
+		tls_close(conn->lsc_tls);
+	}
 	if (closefd && conn->lsc_sockfd >= 0) {
 		close(conn->lsc_sockfd);
 	}
@@ -327,3 +351,115 @@ libsock_sub_connection_find(libsock_ctx_t *ctx, int sockfd)
 	libsock_ctx_unlock(ctx);
 	return (conn);
 }
+
+ssize_t
+libsock_sub_connection_recv(libsock_sub_connection_t *conn, void *buf,
+    size_t bufsz, bool complete)
+{
+	ssize_t res, ret, sz;
+
+	if (conn == NULL || buf == NULL) {
+		return (-1);
+	}
+
+	if (bufsz == 0) {
+		return (0);
+	}
+
+	ret = 0;
+	sz = bufsz;
+	while (sz > 0) {
+		res = tls_read(conn->lsc_tls, buf, sz);
+		if (res == -1) {
+			return (ret);
+		}
+
+		if (!complete) {
+			return (res);
+		}
+
+		sz -= res;
+		ret += res;
+		buf += res;
+	}
+
+	return (ret);
+}
+
+ssize_t
+libsock_sub_connection_send(libsock_sub_connection_t *conn, const void *buf,
+    size_t bufsz)
+{
+	ssize_t res, ret, sz;
+
+	ret = 0;
+	sz = bufsz;
+
+	while (sz > 0) {
+		res = tls_write(conn->lsc_tls, buf, sz);
+		if (res == TLS_WANT_POLLIN || ret == TLS_WANT_POLLOUT) {
+			continue;
+		}
+		if (ret == -1) {
+			return (-1);
+		}
+
+		sz -= res;
+		buf += res;
+		ret += res;
+	}
+
+	return (ret);
+}
+
+bool
+libsock_accept(libsock_ctx_t *ctx)
+{
+	libsock_sub_connection_t *conn;
+
+	if (ctx == NULL) {
+		return (false);
+	}
+
+	if (ctx->lc_type != LIBSOCK_SOCKET_TYPE_SERVER) {
+		return (false);
+	}
+
+	conn = libsock_sub_connection_new(ctx, 0);
+	if (conn == NULL) {
+		return (false);
+	}
+
+	conn->lsc_sockfd = accept(ctx->lc_sockfd, &(conn->lsc_addr),
+	    &(conn->lsc_addrlen));
+	if (conn->lsc_sockfd < 0) {
+		return (false);
+	}
+
+	if (tls_accept_socket(ctx->lc_tls, &(conn->lsc_tls),
+	    conn->lsc_sockfd)) {
+		return (false);
+	}
+
+	if (conn->lsc_tls == NULL) {
+		/*
+		 * This shouldn't happen, but let's be defensive.
+		 */
+		return (false);
+	}
+
+	return (libsock_ctx_add_conn(ctx, conn));
+}
+
+#if 0
+bool
+libsock_bind_iface(libsock_ctx_t *ctx, const char *iface, bool v4, bool v6)
+{
+
+	if (ctx == NULL || iface == NULL) {
+		return (false);
+	}
+
+	return (_libsock_ad_bind_iface(ctx, iface, v4, v6));
+}
+#endif
