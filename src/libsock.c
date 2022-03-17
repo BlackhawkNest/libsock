@@ -223,7 +223,8 @@ libsock_ctx_add_conn(libsock_ctx_t *ctx, libsock_sub_connection_t *conn)
 }
 
 bool
-libsock_ctx_remove_conn(libsock_ctx_t *ctx, int sockfd, bool closefd)
+libsock_ctx_remove_conn(libsock_ctx_t *ctx, int sockfd, bool closefd,
+    bool lock)
 {
 	libsock_sub_connection_t *conn, *tconn;
 	bool res;
@@ -232,7 +233,7 @@ libsock_ctx_remove_conn(libsock_ctx_t *ctx, int sockfd, bool closefd)
 		return (false);
 	}
 
-	if (!libsock_ctx_lock(ctx)) {
+	if (lock && !libsock_ctx_lock(ctx)) {
 		return (false);
 	}
 
@@ -246,7 +247,7 @@ libsock_ctx_remove_conn(libsock_ctx_t *ctx, int sockfd, bool closefd)
 	}
 
 end:
-	if (!libsock_ctx_unlock(ctx)) {
+	if (lock && !libsock_ctx_unlock(ctx)) {
 		return (false);
 	}
 	return (res);
@@ -520,6 +521,108 @@ libsock_listen(libsock_ctx_t *ctx, int backlog)
 	}
 
 	return (listen(ctx->lc_sockfd, backlog) == 0);
+}
+
+uint64_t
+libsock_ctx_get_flags(libsock_ctx_t *ctx)
+{
+
+	if (ctx == NULL) {
+		return (0);
+	}
+
+	return (ctx->lc_flags);
+}
+
+uint64_t
+libsock_ctx_set_flag(libsock_ctx_t *ctx, uint64_t flag)
+{
+	uint64_t oldflags;
+
+	if (ctx == NULL) {
+		return (0);
+	}
+
+	oldflags = ctx->lc_flags;
+	ctx->lc_flags |= flag;
+	return (oldflags);
+}
+
+uint64_t
+libsock_ctx_set_flags(libsock_ctx_t *ctx, uint64_t flags)
+{
+	uint64_t oldflags;
+
+	if (ctx == NULL) {
+		return (0);
+	}
+
+	oldflags = ctx->lc_flags;
+	ctx->lc_flags = flags;
+	return (oldflags);
+}
+
+bool
+libsock_ctx_is_flag_set(libsock_ctx_t *ctx, uint64_t flag)
+{
+
+	if (ctx == NULL) {
+		return (false);
+	}
+
+	return ((ctx->lc_flags & flag) == flag);
+}
+
+uint64_t
+libsock_sub_connection_get_flags(libsock_sub_connection_t *conn)
+{
+
+	if (conn == NULL) {
+		return (0);
+	}
+
+	return (conn->lsc_flags);
+}
+
+uint64_t
+libsock_sub_connection_set_flag(libsock_sub_connection_t *conn, uint64_t flag)
+{
+	uint64_t oldflags;
+
+	if (conn == NULL) {
+		return (0);
+	}
+
+	oldflags = conn->lsc_flags;
+	conn->lsc_flags |= flag;
+	return (oldflags);
+}
+
+uint64_t
+libsock_sub_connection_set_flags(libsock_sub_connection_t *conn,
+    uint64_t flags)
+{
+	uint64_t oldflags;
+
+	if (conn == NULL) {
+		return (0);
+	}
+
+	oldflags = conn->lsc_flags;
+	conn->lsc_flags = oldflags;
+	return (oldflags);
+}
+
+bool
+libsock_sub_connection_is_flag_set(libsock_sub_connection_t *conn,
+    uint64_t flag)
+{
+
+	if (conn == NULL) {
+		return (false);
+	}
+
+	return ((conn->lsc_flags & flag) == flag);
 }
 
 #if 0

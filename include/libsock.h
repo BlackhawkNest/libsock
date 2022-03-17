@@ -46,6 +46,8 @@
 
 #define LIBSOCK_FLAG_PERSIST	0x1
 
+#define LIBSOCK_SUB_CONNECTION_FLAG_TERM	0x1
+
 #if 0
 #define _LIBSOCK_KQUEUE_ENABLE
 #endif
@@ -100,7 +102,12 @@ libsock_ctx_t *libsock_ctx_new(libsock_socket_type_t, int, uint64_t);
 bool libsock_ctx_lock(libsock_ctx_t *);
 bool libsock_ctx_unlock(libsock_ctx_t *);
 bool libsock_ctx_add_conn(libsock_ctx_t *, libsock_sub_connection_t *);
-bool libsock_ctx_remove_conn(libsock_ctx_t *, int, bool);
+bool libsock_ctx_remove_conn(libsock_ctx_t *, int, bool, bool);
+
+uint64_t libsock_ctx_get_flags(libsock_ctx_t *);
+uint64_t libsock_ctx_set_flag(libsock_ctx_t *, uint64_t);
+uint64_t libsock_ctx_set_flags(libsock_ctx_t *, uint64_t);
+bool libsock_ctx_is_flag_set(libsock_ctx_t *, uint64_t);
 
 bool libsock_ctx_load_key_file(libsock_ctx_t *, const char *, char *);
 bool libsock_ctx_load_cert_file(libsock_ctx_t *, const char *);
@@ -117,6 +124,13 @@ ssize_t libsock_sub_connection_recv(libsock_sub_connection_t *, void *,
     size_t, bool);
 ssize_t libsock_sub_connection_send(libsock_sub_connection_t *, const void *,
     size_t);
+
+uint64_t libsock_sub_connection_get_flags(libsock_sub_connection_t *);
+uint64_t libsock_sub_connection_set_flag(libsock_sub_connection_t *,
+    uint64_t);
+uint64_t libsock_sub_connection_set_flags(libsock_sub_connection_t *,
+    uint64_t);
+bool libsock_sub_connection_is_flag_set(libsock_sub_connection_t *, uint64_t);
 
 bool libsock_bind_host(libsock_ctx_t *ctx, const char *, const char *, int);
 bool libsock_accept(libsock_ctx_t *);
