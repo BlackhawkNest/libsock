@@ -98,6 +98,10 @@ typedef struct _libsock_ctx {
 	LIST_HEAD(,_libsock_sub_connection)	 lc_connections;
 } libsock_ctx_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 libsock_ctx_t *libsock_ctx_new(libsock_socket_type_t, int, uint64_t);
 bool libsock_ctx_lock(libsock_ctx_t *);
 bool libsock_ctx_unlock(libsock_ctx_t *);
@@ -138,5 +142,9 @@ bool libsock_sub_connection_is_flag_set(libsock_sub_connection_t *, uint64_t);
 bool libsock_bind_host(libsock_ctx_t *ctx, const char *, const char *, int);
 bool libsock_accept(libsock_ctx_t *);
 bool libsock_listen(libsock_ctx_t *, int);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !_LIBSOCK_H */
