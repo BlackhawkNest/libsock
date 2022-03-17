@@ -103,6 +103,8 @@ bool libsock_ctx_lock(libsock_ctx_t *);
 bool libsock_ctx_unlock(libsock_ctx_t *);
 bool libsock_ctx_add_conn(libsock_ctx_t *, libsock_sub_connection_t *);
 bool libsock_ctx_remove_conn(libsock_ctx_t *, int, bool, bool);
+bool libsock_ctx_remove_conn_by_obj(libsock_ctx_t *,
+    libsock_sub_connection_t *, bool, bool);
 
 uint64_t libsock_ctx_get_flags(libsock_ctx_t *);
 uint64_t libsock_ctx_set_flag(libsock_ctx_t *, uint64_t);
@@ -119,7 +121,8 @@ void libsock_fdset_free(libsock_fdset_t **);
 libsock_sub_connection_t *libsock_sub_connection_new(libsock_ctx_t *,
     uint64_t);
 void libsock_sub_connection_free(libsock_sub_connection_t **, bool);
-libsock_sub_connection_t *libsock_sub_connection_find(libsock_ctx_t *, int);
+libsock_sub_connection_t *libsock_sub_connection_find(libsock_ctx_t *, int,
+    bool);
 ssize_t libsock_sub_connection_recv(libsock_sub_connection_t *, void *,
     size_t, bool);
 ssize_t libsock_sub_connection_send(libsock_sub_connection_t *, const void *,

@@ -226,10 +226,26 @@ bool
 libsock_ctx_remove_conn(libsock_ctx_t *ctx, int sockfd, bool closefd,
     bool lock)
 {
-	libsock_sub_connection_t *conn, *tconn;
-	bool res;
+	libsock_sub_connection_t *conn;
 
 	if (ctx == NULL || sockfd < 0) {
+		return (false);
+	}
+
+	conn = libsock_sub_connection_find(ctx, sockfd, lock);
+	if (conn == NULL) {
+		return (false);
+	}
+
+	return (libsock_ctx_remove_conn_by_obj(ctx, conn, closefd, lock));
+}
+
+bool
+libsock_ctx_remove_conn_by_obj(libsock_ctx_t *ctx,
+    libsock_sub_connection_t *conn, bool closefd, bool lock)
+{
+
+	if (ctx == NULL || conn == NULL) {
 		return (false);
 	}
 
@@ -237,20 +253,15 @@ libsock_ctx_remove_conn(libsock_ctx_t *ctx, int sockfd, bool closefd,
 		return (false);
 	}
 
-	res = true;
-	LIST_FOREACH_SAFE(conn, &(ctx->lc_connections), lsc_entry, tconn) {
-		if (conn->lsc_sockfd == sockfd) {
-			LIST_REMOVE(conn, lsc_entry);
-			libsock_sub_connection_free(&conn, closefd);
-			goto end;
-		}
+	LIST_REMOVE(conn, lsc_entry);
+
+	if (lock) {
+		libsock_ctx_unlock(ctx);
 	}
 
-end:
-	if (lock && !libsock_ctx_unlock(ctx)) {
-		return (false);
-	}
-	return (res);
+	libsock_sub_connection_free(&conn, closefd);
+
+	return (true);
 }
 
 void
@@ -332,7 +343,7 @@ libsock_fdset_free(libsock_fdset_t **fdsetp)
 }
 
 libsock_sub_connection_t *
-libsock_sub_connection_find(libsock_ctx_t *ctx, int sockfd)
+libsock_sub_connection_find(libsock_ctx_t *ctx, int sockfd, bool lock)
 {
 	libsock_sub_connection_t *conn, *tconn;
 
@@ -340,7 +351,7 @@ libsock_sub_connection_find(libsock_ctx_t *ctx, int sockfd)
 		return (NULL);
 	}
 
-	if (!libsock_ctx_lock(ctx)) {
+	if (lock && !libsock_ctx_lock(ctx)) {
 		return (NULL);
 	}
 
@@ -351,7 +362,9 @@ libsock_sub_connection_find(libsock_ctx_t *ctx, int sockfd)
 		}
 	}
 
-	libsock_ctx_unlock(ctx);
+	if (lock) {
+		libsock_ctx_unlock(ctx);
+	}
 	return (conn);
 }
 
