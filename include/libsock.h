@@ -115,7 +115,7 @@ bool libsock_ctx_load_key_file(libsock_ctx_t *, const char *, char *);
 bool libsock_ctx_load_cert_file(libsock_ctx_t *, const char *);
 bool libsock_ctx_config_finalize(libsock_ctx_t *);
 
-libsock_fdset_t *libsock_fdset_get(libsock_ctx_t *);
+libsock_fdset_t *libsock_fdset_get(libsock_ctx_t *, bool);
 void libsock_fdset_free(libsock_fdset_t **);
 
 libsock_sub_connection_t *libsock_sub_connection_new(libsock_ctx_t *,

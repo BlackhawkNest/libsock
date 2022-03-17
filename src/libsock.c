@@ -293,7 +293,7 @@ libsock_sub_connection_free(libsock_sub_connection_t **connp, bool closefd)
 }
 
 libsock_fdset_t *
-libsock_fdset_get(libsock_ctx_t *ctx)
+libsock_fdset_get(libsock_ctx_t *ctx, bool include_mainsock)
 {
 	libsock_sub_connection_t *conn, *tconn;
 	libsock_fdset_t *set;
@@ -324,6 +324,15 @@ libsock_fdset_get(libsock_ctx_t *ctx)
 		free(set);
 		return (NULL);
 	}
+
+	if (include_mainsock) {
+		FD_SET(ctx->lc_sockfd, &(set->lf_set));
+		if (ctx->lc_sockfd > set->lf_nsock) {
+			set->lf_nsock = ctx->lc_sockfd;
+		}
+	}
+
+	set->lf_nsock++;
 
 	return (set);
 }
