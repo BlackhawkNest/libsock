@@ -104,6 +104,7 @@ libsock_ctx_new(libsock_socket_type_t socktype, int sockfd, uint64_t flags)
 	ctx->lc_flags = flags;
 	ctx->lc_sockfd = sockfd;
 	ctx->lc_type = socktype;
+	ctx->lc_version = LIBSOCK_VERSION;
 
 	LIST_INIT(&(ctx->lc_connections));
 
