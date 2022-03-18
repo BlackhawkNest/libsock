@@ -85,6 +85,7 @@ libsock_ctx_new(libsock_socket_type_t socktype, int sockfd, uint64_t flags)
 	switch (socktype) {
 	case LIBSOCK_SOCKET_TYPE_CLIENT:
 		ctx->lc_tls = tls_client();
+		tls_config_prefer_ciphers_client(ctx->lc_tls_config);
 		break;
 	case LIBSOCK_SOCKET_TYPE_SERVER:
 		ctx->lc_tls = tls_server();
