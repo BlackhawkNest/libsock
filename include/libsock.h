@@ -115,6 +115,8 @@ uint64_t libsock_ctx_set_flag(libsock_ctx_t *, uint64_t);
 uint64_t libsock_ctx_set_flags(libsock_ctx_t *, uint64_t);
 bool libsock_ctx_is_flag_set(libsock_ctx_t *, uint64_t);
 
+bool libsock_ctx_load_ca_file(libsock_ctx_t *, const char *);
+bool libsock_ctx_load_ca_path(libsock_ctx_t *, const char *);
 bool libsock_ctx_load_key_file(libsock_ctx_t *, const char *, char *);
 bool libsock_ctx_load_cert_file(libsock_ctx_t *, const char *);
 bool libsock_ctx_config_finalize(libsock_ctx_t *);
@@ -139,9 +141,14 @@ uint64_t libsock_sub_connection_set_flags(libsock_sub_connection_t *,
     uint64_t);
 bool libsock_sub_connection_is_flag_set(libsock_sub_connection_t *, uint64_t);
 
+ssize_t libsock_recv(libsock_ctx_t *, struct tls *, void *, size_t, bool);
+ssize_t libsock_send(libsock_ctx_t *, struct tls *, const void *, size_t);
+
 bool libsock_bind_host(libsock_ctx_t *ctx, const char *, const char *, int);
 bool libsock_accept(libsock_ctx_t *);
 bool libsock_listen(libsock_ctx_t *, int);
+bool libsock_connect(libsock_ctx_t *, const char *, const char *,
+    const char *, int);
 
 #ifdef __cplusplus
 }

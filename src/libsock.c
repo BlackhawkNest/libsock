@@ -112,6 +112,28 @@ libsock_ctx_new(libsock_socket_type_t socktype, int sockfd, uint64_t flags)
 }
 
 bool
+libsock_ctx_load_ca_file(libsock_ctx_t *ctx, const char *path)
+{
+
+	if (ctx == NULL || path == NULL) {
+		return (false);
+	}
+
+	return (tls_config_set_ca_file(ctx->lc_tls_config, path));
+}
+
+bool
+libsock_ctx_load_ca_path(libsock_ctx_t *ctx, const char *path)
+{
+
+	if (ctx == NULL || path == NULL) {
+		return (false);
+	}
+
+	return (tls_config_set_ca_path(ctx->lc_tls_config, path));
+}
+
+bool
 libsock_ctx_load_key_file(libsock_ctx_t *ctx, const char *path, char *password)
 {
 
@@ -382,9 +404,22 @@ ssize_t
 libsock_sub_connection_recv(libsock_sub_connection_t *conn, void *buf,
     size_t bufsz, bool complete)
 {
-	ssize_t res, ret, sz;
 
 	if (conn == NULL || buf == NULL) {
+		return (-1);
+	}
+
+	return (libsock_recv(conn->lsc_ctx, conn->lsc_tls, buf, bufsz,
+	    complete));
+}
+
+ssize_t
+libsock_recv(libsock_ctx_t *ctx, struct tls *tlsobj, void *buf, size_t bufsz,
+    bool complete)
+{
+	ssize_t res, ret, sz;
+
+	if (ctx == NULL || tlsobj == NULL || buf == NULL) {
 		return (-1);
 	}
 
@@ -395,7 +430,7 @@ libsock_sub_connection_recv(libsock_sub_connection_t *conn, void *buf,
 	ret = 0;
 	sz = bufsz;
 	while (sz > 0) {
-		res = tls_read(conn->lsc_tls, buf, sz);
+		res = tls_read(tlsobj, buf, sz);
 		if (res == -1) {
 			return (ret);
 		}
@@ -416,13 +451,29 @@ ssize_t
 libsock_sub_connection_send(libsock_sub_connection_t *conn, const void *buf,
     size_t bufsz)
 {
+
+	if (conn == NULL || buf == NULL) {
+		return (-1);
+	}
+
+	return (libsock_send(conn->lsc_ctx, conn->lsc_tls, buf, bufsz));
+}
+
+ssize_t
+libsock_send(libsock_ctx_t *ctx, struct tls *tlsobj, const void *buf,
+    size_t bufsz)
+{
 	ssize_t res, ret, sz;
+
+	if (ctx == NULL || tlsobj == NULL || buf == NULL) {
+		return (-1);
+	}
 
 	ret = 0;
 	sz = bufsz;
 
 	while (sz > 0) {
-		res = tls_write(conn->lsc_tls, buf, sz);
+		res = tls_write(tlsobj, buf, sz);
 		if (res == TLS_WANT_POLLIN || ret == TLS_WANT_POLLOUT) {
 			continue;
 		}
@@ -544,6 +595,81 @@ libsock_listen(libsock_ctx_t *ctx, int backlog)
 	}
 
 	return (listen(ctx->lc_sockfd, backlog) == 0);
+}
+
+bool
+libsock_connect(libsock_ctx_t *ctx, const char *host, const char *port,
+    const char *servername, int flags)
+{
+	struct addrinfo hints, *infop, *info;
+	int sockflags;
+
+	if (ctx == NULL || ctx->lc_tls == NULL || host == NULL ||
+	    port == NULL) {
+		return (false);
+	}
+
+	if (ctx->lc_type != LIBSOCK_SOCKET_TYPE_CLIENT) {
+		return (false);
+	}
+
+	if (ctx->lc_sockfd >= 0) {
+		return (false);
+	}
+
+	infop = NULL;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
+	if (getaddrinfo(host, port, &hints, &infop)) {
+		return (false);
+	}
+
+	if (infop == NULL) {
+		/* This shouldn't happen, but let's be defensive. */
+		return (false);
+	}
+
+	sockflags = flags | SOCK_CLOEXEC;
+
+	for (info = infop; info != NULL; info = info->ai_next) {
+		ctx->lc_sockfd = socket(info->ai_family,
+		    info->ai_socktype | sockflags,
+		    info->ai_protocol);
+		if (ctx->lc_sockfd < 0) {
+			continue;
+		}
+
+		if (connect(ctx->lc_sockfd, info->ai_addr, info->ai_addrlen)) {
+			close(ctx->lc_sockfd);
+			ctx->lc_sockfd = -1;
+			continue;
+		}
+
+		if (tls_connect_socket(ctx->lc_tls, ctx->lc_sockfd,
+		    servername)) {
+			close(ctx->lc_sockfd);
+			ctx->lc_sockfd = -1;
+			continue;
+		}
+
+		break;
+	}
+
+	if (ctx->lc_sockfd == -1) {
+		/*
+		 * If we were unable to establish a TLS session with a
+		 * remote endpoint, we need to recreate the tls
+		 * object. Which likely also means that this entire
+		 * libsock context object needs to be discarded.
+		 */
+		tls_close(ctx->lc_tls);
+		ctx->lc_tls = NULL;
+	}
+
+	freeaddrinfo(infop);
+	return (ctx->lc_sockfd >= 0);
 }
 
 uint64_t
