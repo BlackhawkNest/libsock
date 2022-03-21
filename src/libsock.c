@@ -112,6 +112,37 @@ libsock_ctx_new(libsock_socket_type_t socktype, int sockfd, uint64_t flags)
 	return (ctx);
 }
 
+void
+libsock_ctx_free(libsock_ctx_t **ctxp)
+{
+	libsock_sub_connection_t *conn, *tconn;
+	libsock_ctx_t *ctx;
+
+	if (ctxp == NULL || *ctxp == NULL) {
+		return;
+	}
+
+	ctx = *ctxp;
+
+	libsock_ctx_lock(ctx);
+	LIST_FOREACH_SAFE(conn, &(ctx->lc_connections), lsc_entry, tconn) {
+		libsock_ctx_remove_conn_by_obj(ctx, conn, true, false);
+	}
+	libsock_ctx_unlock(ctx);
+
+	if (ctx->lc_tls != NULL) {
+		tls_close(ctx->lc_tls);
+	}
+	if (ctx->lc_tls_config != NULL) {
+		tls_config_free(ctx->lc_tls_config);
+	}
+
+	pthread_mutex_destroy(&(ctx->lc_mtx));
+
+	free(ctx);
+	*ctxp = NULL;
+}
+
 bool
 libsock_ctx_load_ca_file(libsock_ctx_t *ctx, const char *path)
 {

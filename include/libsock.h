@@ -103,6 +103,7 @@ extern "C" {
 #endif
 
 libsock_ctx_t *libsock_ctx_new(libsock_socket_type_t, int, uint64_t);
+void libsock_ctx_free(libsock_ctx_t **);
 bool libsock_ctx_lock(libsock_ctx_t *);
 bool libsock_ctx_unlock(libsock_ctx_t *);
 bool libsock_ctx_add_conn(libsock_ctx_t *, libsock_sub_connection_t *);
