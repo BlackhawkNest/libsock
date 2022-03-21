@@ -151,7 +151,7 @@ libsock_ctx_load_ca_file(libsock_ctx_t *ctx, const char *path)
 		return (false);
 	}
 
-	return (tls_config_set_ca_file(ctx->lc_tls_config, path));
+	return (tls_config_set_ca_file(ctx->lc_tls_config, path) == 0);
 }
 
 bool
@@ -162,7 +162,7 @@ libsock_ctx_load_ca_path(libsock_ctx_t *ctx, const char *path)
 		return (false);
 	}
 
-	return (tls_config_set_ca_path(ctx->lc_tls_config, path));
+	return (tls_config_set_ca_path(ctx->lc_tls_config, path) == 0);
 }
 
 bool
