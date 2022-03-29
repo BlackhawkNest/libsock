@@ -565,7 +565,8 @@ libsock_bind_host(libsock_ctx_t *ctx, const char *host, const char *port,
     int sockflags)
 {
 	struct addrinfo hints, *infop, *info;
-	int yes;
+	struct protoent proto, *protop;
+	int keepalive, yes;
 
 	if (ctx == NULL || host == NULL || port == NULL) {
 		return (false);
@@ -606,6 +607,34 @@ libsock_bind_host(libsock_ctx_t *ctx, const char *host, const char *port,
 		yes = 1;
 		setsockopt(ctx->lc_sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
 		     sizeof(yes));
+
+		if (libsock_ctx_is_flag_set(ctx, LIBSOCK_FLAG_PERSIST)) {
+			protop = getprotobynumber(info->ai_protocol);
+			if (protop == NULL) {
+				close(ctx->lc_sockfd);
+				ctx->lc_sockfd = -1;
+				continue;
+			}
+			memmove(&proto, protop, sizeof(proto));
+
+			keepalive = 1;
+			if (setsockopt(ctx->lc_sockfd, SOL_SOCKET,
+			    SO_KEEPALIVE, (void *)&keepalive,
+			    sizeof(keepalive))) {
+				close(ctx->lc_sockfd);
+				ctx->lc_sockfd = -1;
+				continue;
+			}
+
+			keepalive = 5;
+			if (setsockopt(ctx->lc_sockfd, proto.p_proto,
+			    TCP_KEEPINTVL, (void *)&keepalive,
+			    sizeof(keepalive))) {
+				close(ctx->lc_sockfd);
+				ctx->lc_sockfd = -1;
+				continue;
+			}
+		}
 
 		if (bind(ctx->lc_sockfd, info->ai_addr, info->ai_addrlen)) {
 			close(ctx->lc_sockfd);
