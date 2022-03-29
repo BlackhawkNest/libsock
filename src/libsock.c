@@ -36,6 +36,8 @@
 
 #include "libsock.h"
 
+#include <netinet/tcp.h>
+
 libsock_ctx_t *
 libsock_ctx_new(libsock_socket_type_t socktype, int sockfd, uint64_t flags)
 {
@@ -634,7 +636,8 @@ libsock_connect(libsock_ctx_t *ctx, const char *host, const char *port,
     const char *servername, int flags)
 {
 	struct addrinfo hints, *infop, *info;
-	int sockflags;
+	struct protoent proto, *protop;
+	int keepalive, sockflags;
 
 	if (ctx == NULL || ctx->lc_tls == NULL || host == NULL ||
 	    port == NULL) {
@@ -673,6 +676,34 @@ libsock_connect(libsock_ctx_t *ctx, const char *host, const char *port,
 			continue;
 		}
 
+		if (libsock_ctx_is_flag_set(ctx, LIBSOCK_FLAG_PERSIST)) {
+			protop = getprotobynumber(info->ai_protocol);
+			if (protop == NULL) {
+				close(ctx->lc_sockfd);
+				ctx->lc_sockfd = -1;
+				continue;
+			}
+			memmove(&proto, protop, sizeof(proto));
+
+			keepalive = 1;
+			if (setsockopt(ctx->lc_sockfd, SOL_SOCKET,
+			    SO_KEEPALIVE, (void *)&keepalive,
+			    sizeof(keepalive))) {
+				close(ctx->lc_sockfd);
+				ctx->lc_sockfd = -1;
+				continue;
+			}
+
+			keepalive = 5;
+			if (setsockopt(ctx->lc_sockfd, proto.p_proto,
+			    TCP_KEEPINTVL, (void *)&keepalive,
+			    sizeof(keepalive))) {
+				close(ctx->lc_sockfd);
+				ctx->lc_sockfd = -1;
+				continue;
+			}
+		}
+
 		if (connect(ctx->lc_sockfd, info->ai_addr, info->ai_addrlen)) {
 			close(ctx->lc_sockfd);
 			ctx->lc_sockfd = -1;
@@ -701,7 +732,7 @@ libsock_connect(libsock_ctx_t *ctx, const char *host, const char *port,
 	}
 
 	freeaddrinfo(infop);
-	return (ctx->lc_sockfd >= 0);
+	return (ctx->lc_sockfd >= 0 && ctx->lc_tls != NULL);
 }
 
 uint64_t
