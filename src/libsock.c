@@ -138,6 +138,9 @@ libsock_ctx_free(libsock_ctx_t **ctxp)
 	if (ctx->lc_tls_config != NULL) {
 		tls_config_free(ctx->lc_tls_config);
 	}
+	if (ctx->lc_sockfd >= 0) {
+		close(ctx->lc_sockfd);
+	}
 
 	pthread_mutex_destroy(&(ctx->lc_mtx));
 
